@@ -1,0 +1,20 @@
+# Сборка и временные файлы
+[Bb]in/
+[O|o]bj/
+dll/
+
+# Пользовательские настройки IDE (Visual Studio / JetBrains Rider)
+.vs/
+.idea/
+*.user
+*.userosscache
+*.sln.DotSettings.user
+*.suo
+*.userprefs
+
+# Временные файлы и дампы кода
+*.log
+
+# Системные файлы OS
+.DS_Store
+Thumbs.db
