@@ -18,3 +18,5 @@ dll/
 # Системные файлы OS
 .DS_Store
 Thumbs.db
+
+appsettings.json
