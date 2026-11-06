@@ -1,6 +1,22 @@
 @WebApi_HostAddress = http://localhost:5266
 
-GET {{WebApi_HostAddress}}/weatherforecast/
-Accept: application/json
+### Список товаров (пагинация, заголовок X-Total-Count)
+GET {{WebApi_HostAddress}}/api/Product?page=1&pageSize=10
 
-###
+### Частичное обновление товара
+PATCH {{WebApi_HostAddress}}/api/Product/1
+Content-Type: application/json
+
+{ "price": 99990 }
+
+### Зарезервировать товар (уменьшает Stock, создаёт резервацию)
+POST {{WebApi_HostAddress}}/api/Reservation
+Content-Type: application/json
+
+{ "userId": 2, "productId": 1, "quantity": 1 }
+
+### Отменить резервацию (возвращает Stock, закрывает резервацию)
+POST {{WebApi_HostAddress}}/api/Reservation/1/cancel
+
+### Список резерваций
+GET {{WebApi_HostAddress}}/api/Reservation

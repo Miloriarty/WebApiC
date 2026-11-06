@@ -1,106 +1,87 @@
 using Microsoft.AspNetCore.Mvc;
-using WebApi.Models;
-using static WebApi.Models.RoleMapper;
+using WebApi.Dtos;
+using WebApi.Services;
 
-namespace WebApi.Controllers
+namespace WebApi.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class RoleController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class RoleController : ControllerBase
+    private readonly IRoleService _roleService;
+
+    public RoleController(IRoleService roleService)
     {
-        private readonly AppDbContext _context;
+        _roleService = roleService;
+    }
 
-        public RoleController(AppDbContext context)
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        int page = 1, int pageSize = 10, CancellationToken cancellationToken = default)
+    {
+        var (items, total) = await _roleService.GetAllAsync(page, pageSize, cancellationToken);
+
+        Response.Headers["X-Total-Count"] = total.ToString();
+        return Ok(items);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
+    {
+        var role = await _roleService.GetByIdAsync(id, cancellationToken);
+        if (role is null) return NotFound();
+        return Ok(role);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create(CreateRoleDto dto, CancellationToken cancellationToken)
+    {
+        try
         {
-            _context = context;
+            var role = await _roleService.CreateAsync(dto, cancellationToken);
+            return CreatedAtAction(nameof(GetById), new { id = role.Id }, role);
         }
-
-        [HttpGet]
-        public IActionResult GetAll(int page = 1, int pageSize = 10)
+        catch (InvalidOperationException ex)
         {
-            var roles = _context.Roles
-                .OrderBy(role => role.Id)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList()
-                .Select(ToDto)
-                .ToList();
-
-            return Ok(roles);
+            return BadRequest(new { error = ex.Message });
         }
+    }
 
-        [HttpGet("{id}")]
-        public IActionResult GetById(int id)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, UpdateRoleDto dto, CancellationToken cancellationToken)
+    {
+        try
         {
-            var role = _context.Roles.FirstOrDefault(role => role.Id == id);
-
-            if (role == null) return NotFound();
-
-            return Ok(ToDto(role));
+            var role = await _roleService.UpdateAsync(id, dto, cancellationToken);
+            if (role is null) return NotFound();
+            return Ok(role);
         }
-
-        [HttpPost]
-        public IActionResult Create(CreateRoleDto dto)
+        catch (InvalidOperationException ex)
         {
-            var role = new Role
-            {
-                NameRole = dto.NameRole
-            };
-
-            _context.Roles.Add(role);
-            _context.SaveChanges();
-
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = role.Id },
-                ToDto(role)
-            );
+            return BadRequest(new { error = ex.Message });
         }
+    }
 
-        [HttpPut("{id}")]
-        public IActionResult Put(int id, UpdateRoleDto dto)
+    [HttpPatch("{id}")]
+    public async Task<IActionResult> Patch(int id, PatchRoleDto dto, CancellationToken cancellationToken)
+    {
+        try
         {
-            var role = _context.Roles.FirstOrDefault(role => role.Id == id);
-
-            if (role == null) return NotFound();
-
-            role.NameRole = dto.NameRole;
-
-            _context.SaveChanges();
-
-            return NoContent();
+            var role = await _roleService.PatchAsync(id, dto, cancellationToken);
+            if (role is null) return NotFound();
+            return Ok(role);
         }
-
-        [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        catch (InvalidOperationException ex)
         {
-            var role = _context.Roles.FirstOrDefault(role => role.Id == id);
-
-            if (role == null) return NotFound();
-
-            _context.Roles.Remove(role);
-            _context.SaveChanges();
-
-            return NoContent();
+            return BadRequest(new { error = ex.Message });
         }
+    }
 
-        [HttpPatch("{id}")]
-        public IActionResult Patch(int id, PatchRoleDto dto)
-        {
-            var role = _context.Roles.FirstOrDefault(role => role.Id == id);
-
-            if (role == null) return NotFound();
-
-            if (dto.NameRole is not null) role.NameRole = dto.NameRole;
-
-            _context.SaveChanges();
-
-            return NoContent();
-        }
-
-        private bool RoleExists(int id)
-        {
-            return _context.Roles.Any(e => e.Id == id);
-        }
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var deleted = await _roleService.DeleteAsync(id, cancellationToken);
+        if (!deleted) return NotFound();
+        return NoContent();
     }
 }

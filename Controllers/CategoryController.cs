@@ -1,116 +1,87 @@
 using Microsoft.AspNetCore.Mvc;
-using WebApi.Models;
-using static WebApi.Models.CategoryMapper;
+using WebApi.Dtos;
+using WebApi.Services;
 
-namespace WebApi.Controllers
+namespace WebApi.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class CategoryController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class CategoryController : ControllerBase
+    private readonly ICategoryService _categoryService;
+
+    public CategoryController(ICategoryService categoryService)
     {
-        private readonly AppDbContext _context;
+        _categoryService = categoryService;
+    }
 
-        public CategoryController(AppDbContext context)
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        int page = 1, int pageSize = 10, CancellationToken cancellationToken = default)
+    {
+        var (items, total) = await _categoryService.GetAllAsync(page, pageSize, cancellationToken);
+
+        Response.Headers["X-Total-Count"] = total.ToString();
+        return Ok(items);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
+    {
+        var category = await _categoryService.GetByIdAsync(id, cancellationToken);
+        if (category is null) return NotFound();
+        return Ok(category);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create(CreateCategoryDto dto, CancellationToken cancellationToken)
+    {
+        try
         {
-            _context = context;
+            var category = await _categoryService.CreateAsync(dto, cancellationToken);
+            return CreatedAtAction(nameof(GetById), new { id = category.Id }, category);
         }
-
-        [HttpGet]
-        public IActionResult GetAll(int page = 1, int pageSize = 10)
+        catch (InvalidOperationException ex)
         {
-            var categories = _context.Categories
-                .OrderBy(category => category.Id)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList()
-                .Select(ToDto)
-                .ToList();
-
-            return Ok(categories);
+            return BadRequest(new { error = ex.Message });
         }
+    }
 
-        [HttpGet("{id}")]
-        public IActionResult GetById(int id)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, UpdateCategoryDto dto, CancellationToken cancellationToken)
+    {
+        try
         {
-            var category = _context.Categories
-                .FirstOrDefault(category => category.Id == id);
-
-            if (category == null)
-                return NotFound();
-
-            return Ok(ToDto(category));
+            var category = await _categoryService.UpdateAsync(id, dto, cancellationToken);
+            if (category is null) return NotFound();
+            return Ok(category);
         }
-
-        [HttpPost]
-        public IActionResult Create(CreateCategoryDto dto)
+        catch (InvalidOperationException ex)
         {
-            var category = new Category
-            {
-                NameCategory = dto.NameCategory,
-                DescriptionCategory = dto.DescriptionCategory
-            };
-
-            _context.Categories.Add(category);
-            _context.SaveChanges();
-
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = category.Id },
-                ToDto(category)
-            );
+            return BadRequest(new { error = ex.Message });
         }
+    }
 
-        [HttpPut("{id}")]
-        public IActionResult Put(int id, UpdateCategoryDto dto)
+    [HttpPatch("{id}")]
+    public async Task<IActionResult> Patch(int id, PatchCategoryDto dto, CancellationToken cancellationToken)
+    {
+        try
         {
-            var category = _context.Categories
-                .FirstOrDefault(category => category.Id == id);
-
-            if (category == null)
-                return NotFound();
-
-            category.NameCategory = dto.NameCategory;
-            category.DescriptionCategory = dto.DescriptionCategory;
-
-            _context.SaveChanges();
-
-            return NoContent();
+            var category = await _categoryService.PatchAsync(id, dto, cancellationToken);
+            if (category is null) return NotFound();
+            return Ok(category);
         }
-
-        [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        catch (InvalidOperationException ex)
         {
-            var category = _context.Categories
-                .FirstOrDefault(category => category.Id == id);
-
-            if (category == null)
-                return NotFound();
-
-            _context.Categories.Remove(category);
-            _context.SaveChanges();
-
-            return NoContent();
+            return BadRequest(new { error = ex.Message });
         }
+    }
 
-        [HttpPatch("{id}")]
-        public IActionResult Patch(int id, PatchCategoryDto dto)
-        {
-            var category = _context.Categories.FirstOrDefault(category => category.Id == id);
-
-            if (category == null) return NotFound();
-
-            if (dto.NameCategory is not null) category.NameCategory = dto.NameCategory;
-
-            if (dto.DescriptionCategory is not null) category.DescriptionCategory = dto.DescriptionCategory;
-
-            _context.SaveChanges();
-
-            return NoContent();
-        }
-
-        private bool CategoryExists(int id)
-        {
-            return _context.Categories.Any(e => e.Id == id);
-        }
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var deleted = await _categoryService.DeleteAsync(id, cancellationToken);
+        if (!deleted) return NotFound();
+        return NoContent();
     }
 }
